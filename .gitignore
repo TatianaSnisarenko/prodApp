@@ -1,0 +1,10 @@
+library.iml
+.idea
+target/*
+out/*
+gradlew/*
+gradlew.bat
+gradle/*
+build/*
+.gradle
+src/main/resources/application.properties
