@@ -3,6 +3,7 @@ package ua.goit.prodApp.controller;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.view.RedirectView;
+import ua.goit.prodApp.exceptions.LastAdminDeleteAttemptException;
 import ua.goit.prodApp.exceptions.UserAlreadyExistException;
 import ua.goit.prodApp.model.entity.Role;
 import ua.goit.prodApp.model.entity.User;
@@ -82,8 +84,8 @@ public class UserController {
                     .collect(Collectors.toList());
         }
         user.setRoles(roles);
-        try{
-        userService.create(user);
+        try {
+            userService.create(user);
         } catch (UserAlreadyExistException ex) {
             log.error("addNewUser . Account with provided email already exists");
             model.addAttribute("message", "Account with provided email already exists");
@@ -111,10 +113,32 @@ public class UserController {
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping(path = "/delete")
-    public RedirectView deleteUser(@RequestParam(name = "id") UUID id) {
+    public String deleteUser(@RequestParam(name = "id")  UUID id, Model model) {
         log.info("deleteUser .");
-        userService.deleteById(id);
-        return new RedirectView(("/users"));
+        try {
+            User user = userService.findById(id)
+                    .orElseThrow(() -> new NoSuchElementException("No such index in database"));
+            if (userService.isLastAdmin(user)) {
+                throw new LastAdminDeleteAttemptException("You are not allowed to delete last registered admin");
+            }else{
+                userService.deleteById(id);
+                String currentPrincipalName = SecurityContextHolder.getContext().getAuthentication().getName();
+                if(currentPrincipalName.equals(user.getEmail())){
+                    return "redirect:/login";
+                }
+            }
+        } catch (NoSuchElementException e) {
+            log.error(e.getMessage());
+            model.addAttribute("message", "Account with provided email already exists");
+            model.addAttribute("users", userService.findAll());
+            return "users";
+        }catch (LastAdminDeleteAttemptException e){
+            log.error(e.getMessage());
+            model.addAttribute("message", "You are not allowed to delete last registered admin");
+            model.addAttribute("users", userService.findAll());
+            return "users";
+        }
+        return "redirect:/users";
     }
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")

@@ -49,6 +49,7 @@
             </c:forEach>
             </tbody>
         </table>
+        <span style="color:red; align-self: center">${message}</span>
     </div>
 </div>
 </body>

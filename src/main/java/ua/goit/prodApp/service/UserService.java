@@ -11,6 +11,7 @@ import ua.goit.prodApp.model.entity.enums.UserRole;
 import ua.goit.prodApp.model.repository.RoleRepository;
 import ua.goit.prodApp.model.repository.UserRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -35,7 +36,7 @@ public class UserService {
         userRepository.save(user);
     }
 
-    public void create(User user){
+    public void create(User user) {
         log.info("create .");
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
             log.error(String.format("create . User with specified email already exists %s", user.getEmail()));
@@ -69,5 +70,20 @@ public class UserService {
             log.error("deleteById . No such index in database");
             throw new NoSuchElementException("No such index in database");
         }
+    }
+
+    public boolean isLastAdmin(User user) {
+        if (!hasAdminRole(user)) {
+            return false;
+        } else {
+            return userRepository.findAll().stream().map(User::getRoles)
+                    .flatMap(Collection::stream)
+                    .filter(role -> role.getUserRole() == UserRole.ROLE_ADMIN)
+                    .count() == 1L;
+        }
+    }
+
+    private boolean hasAdminRole(User user) {
+        return user.getRoles().stream().anyMatch(role -> role.getUserRole() == UserRole.ROLE_ADMIN);
     }
 }
